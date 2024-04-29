@@ -1,4 +1,6 @@
-# Import ctypes and enum
+# Copyright (c) 2024 Aljoscha Greim <aljoscha@bembelbytes.com>
+# MIT License
+
 import ctypes
 import enum
 

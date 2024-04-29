@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Aljoscha Greim <aljoscha@bembelbytes.com>
+# MIT License
+
 import ctypes
 from ctypes.util import find_library
 
@@ -36,18 +39,19 @@ apiJobData = _api32.__apiJobData
 apiJobExt = _api32.__apiJobExt 
 apiJobInfo = _api32.__apiJobInfo
 
+apiResultSets = _api32.__apiResultSets
+apiResultNumber = _api32.__apiResultNumber
+apiResultName = _api32.__apiResultName
+apiResultFormat = _api32.__apiResultFormat
+
 apiResultBinary = _api32.__apiResultBinary
 apiResultBinaryExt = _api32.__apiResultBinaryExt
 apiResultByte = _api32.__apiResultByte
 apiResultChar = _api32.__apiResultChar
 apiResultDWord = _api32.__apiResultDWord
-apiResultFormat = _api32.__apiResultFormat
 apiResultInt = _api32.__apiResultInt
 apiResultLong = _api32.__apiResultLong
-apiResultName = _api32.__apiResultName
-apiResultNumber = _api32.__apiResultNumber
 apiResultReal = _api32.__apiResultReal
-apiResultSets = _api32.__apiResultSets
 apiResultText = _api32.__apiResultText
 apiResultVar = _api32.__apiResultVar
 apiResultWord = _api32.__apiResultWord

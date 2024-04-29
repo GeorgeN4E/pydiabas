@@ -1,141 +1,327 @@
-from __future__ import annotations
-from collections import namedtuple
+# Copyright (c) 2024 Aljoscha Greim <aljoscha@bembelbytes.com>
+# MIT License
 
-from . import ediabas
-from .ediabas import utils
+from __future__ import annotations
+from dataclasses import dataclass
+
+from .ediabas import utils, EDIABAS
 
 
 class Result():
-    def __init__(self, pydiabas: ediabas.EDIABAS, result_filter: list[str] = []) -> Result:
-        if not isinstance(pydiabas, ediabas.EDIABAS):
-            raise TypeError("pydiabas need to be an instance of PyDIABAS")
 
-        self._pydiabas = pydiabas
-        self._sets: list[Set] = []
-        self._systemResult: Set = Set()
-        self._result_filter = []
+    """Class to handle the results in the EDIABAS API.
+    """
 
-        for item in result_filter:
-            if item:
-                self._result_filter.append(item.upper())
+    def __init__(self, ediabas: EDIABAS) -> None:
+
+        """Initializes the Result object.
+
+        Handling the EDIABAS API initialization and job execution must be done before trying to fetch the results.
+         
+        Parameters:
+        ediabas: Instance of pydiabas.ediabas.EDIABAS class.
+
+        Raises:
+            TypeError
+        """
+
+        if not isinstance(ediabas, EDIABAS):
+            raise TypeError("ediabas need to be an instance of EDIABAS")
+
+        self._ediabas = ediabas
+        self._jobSets: list[Set] = []
+        self._systemSet: Set = Set()
 
     def clear(self) -> None:
-        self._sets = []
 
-    def fetchsystem(self) -> Result:
+        """Resets systemSet and jobSets.
+        """
+        
+        self._systemSet = Set()
+        self._jobSets = []
+
+    def _fetchset(self, i_set: int) -> Result:
+
+        """Gets all result names and values from the given set.
+        USES EDIABAS API INDEXING! Set #0 is alway the system set. Job sets start at set #1.
+
+        Parameters:
+        i_set: Set index to be fetched (#0 is system result, job results start at #1).
+
+        Return values:
+        return: Result object.
+
+        Raises:
+            IndexError
+        """
+
         rows: list[Row] = []
-        for pos in range(1, self._pydiabas.resultNumber(set=0) + 1):
-            result_name = self._pydiabas.resultName(position=pos, set=0)
-            rows.append(Row(result_name, utils.getResult(self._pydiabas, result_name, set=0)))
-        self._systemResult = Set(rows)
+
+        job_sets_available = self._ediabas.resultSets()
+        if i_set > job_sets_available:
+            raise IndexError("Index out of range")
+
+        # Got trough all results in the given set and add them to the rows
+        for pos in range(1, self._ediabas.resultNumber(set=i_set) + 1):
+            result_name = self._ediabas.resultName(position=pos, set=i_set).upper()
+            rows.append(Row(result_name, utils.getResult(self._ediabas, result_name, set=i_set)))
+
+        # Set the rows as systemResult if set 0 has been fetched (set 0 contains always the system results according to
+        # EDIABAS API documentation)
+        if i_set == 0:
+            self._systemSet = Set(rows)
+
+        # Add the rows to the jobSets and make sure to fill any missing sets before the index of the given set with
+        # empty sets if necessary
+        else:
+            # index for job sets is not the same as the set index from EDIABAS API as set #0 is always the system set
+            # and job data sets start at set #1
+            i_job_set = i_set - 1
+
+            # Fill list with empty sets if necessary to be able to get the fetched set via its index in jobSets
+            for i in range(i_job_set + 1):
+                try:
+                    self._jobSets[i]
+                except IndexError:
+                    self._jobSets.append(Set())
+            
+            # Store set in jobSets
+            self._jobSets[i_job_set] = Set(rows)
+        
+        return self
+
+    def fetchsystemset(self) -> Result:
+
+        """Gets all result names and values from the systemSet.
+        Any previously stored results in the systemSet will be overridden!
+
+        Return values:
+        result: Result object.
+        """
+
+        self._fetchset(i_set=0)
+        return self
+        
+    def fetchjobsets(self) -> Result:
+        self._jobSets = []
+        for s in range(self._ediabas.resultSets()):
+            self._fetchset(s + 1)
         
         return self
     
     def fetchall(self) -> Result:
-        self.fetchsystem()
-        
-        for set in range(1, self._pydiabas.resultSets() + 1):
-            rows: list[Row] = []
-            for pos in range(1, self._pydiabas.resultNumber(set=set) + 1):
-                result_name = self._pydiabas.resultName(position=pos, set=set).upper()
-                rows.append(Row(result_name, utils.getResult(self._pydiabas, result_name, set=set)))
-            self._sets.append(Set(rows))
-        
-        return self
-        
-    def fetchjobresults(self) -> Result:
-        for set in range(1, self._pydiabas.resultSets() + 1):
-            rows: list[Row] = []
-            for result_name in self._result_filter:
-                result_value = utils.getResult(self._pydiabas, result_name, set=set)
-                if result_value is not None:
-                    rows.append(Row(result_name, result_value))
-            self._sets.append(Set(rows))
-        
-        return self
 
-    def fetchset(self, set: int = 0) -> Result:
-        rows: list[Row] = []
-        for pos in range(1, self._pydiabas.resultNumber(set=set + 1) + 1):
-            result_name = self._pydiabas.resultName(position=pos, set=set + 1).upper()
-            rows.append(Row(result_name, utils.getResult(self._pydiabas, result_name, set=set + 1)))
-        self._sets.append(Set(rows))
+        """Gets the systemSet and all available jobSets.
+        All previously stored result data will be overridden!
         
+        Result values:
+        result: Result object.
+        """
+
+        self.fetchsystemset()
+        self.fetchjobsets()
         return self
 
     def fetchname(self, name: str) -> Result:
-        for set in range(1, self._pydiabas.resultSets() + 1):
-            rows: list[Row] = []
-            result_value = utils.getResult(self._pydiabas, name, set=set)
-            if result_value is not None:
-                rows.append(Row(name.upper(), result_value))
-            self._sets.append(Set(rows))
+
+        """Searches every jobSet for the given name and gets the corresponding value.
+        Results will be incorporated in already present jobResult data.
+        systemSet will not be searched.
+        Only the first occurrence of the name per jobSet will be fetched.
+
+        Parameters:
+        name: Name to be searched for.
+
+        Return values:
+        result: Result object.
+        """
         
+        # Search for result with given name in each job set
+        for i_set in range(self._ediabas.resultSets()):
+            
+            # Add an empty set if needed
+            if len(self._jobSets) <= i_set:
+                self._jobSets.append(Set())
+
+            # Try to get result by name in this set
+            result_value = utils.getResult(self._ediabas, name, set=i_set + 1)
+            if result_value is not None:
+                
+                # Check if row with same name is already present and set new value
+                found: bool = False
+                for i_row, row in enumerate(self._jobSets[i_set]):
+                    if row.name.upper() == name.upper():
+                        self._jobSets[i_set][i_row].value = result_value
+                        # End this iteration if row has been found
+                        found = True
+                        break
+                
+                if found:
+                    continue
+
+                # Add new row to set
+                row_to_add = Row(name=name, value=result_value)
+                self._jobSets[i_set]._rows.append(row_to_add)
+
         return self
 
     def fetchnames(self, names: list[str]) -> Result:
-        names = [name.upper() for name in names]
-        for set in range(1, self._pydiabas.resultSets() + 1):
-            rows: list[Row] = []
-            for result_name in names:
-                result_value = utils.getResult(self._pydiabas, result_name, set=set)
-                if result_value is not None:
-                    rows.append(Row(result_name, result_value))
-            self._sets.append(Set(rows))
+
+        """Searches every jobSet for the given names and gets the corresponding values.
+        Results will be incorporated in already present jobResult data.
+        systemSet will not be searched.
+        Only the first occurrence of each name per jobSet will be fetched.
+
+        Parameters:
+        names: List of names to be searched for.
+
+        Return values:
+        result: Result object.
+        """
+
+        for name in names:
+            self.fetchname(name)
         
         return self
 
     @property
-    def all(self) -> list[Set]:
-        return self._sets
+    def systemSet(self) -> Set:
+
+        """Set containing all system related results.
+        """
+
+        return self._systemSet
 
     @property
+    def jobSets(self) -> list[Set]:
+
+        """Sets containing all job related results.
+        """
+        
+        return self._jobSets
+
+    @property
+    def ecu(self) -> str | None:
+
+        """Name of the ECU.
+        """
+
+        try:
+            return self._systemSet["VARIANTE"]
+        except KeyError:
+            return None
+
+    @property
+    def jobname(self) -> str | None:
+
+        """Name of the job. Not implemented in all ECUs.
+        """
+
+        try:
+            return self._systemSet["JOBNAME"]
+        except KeyError:
+            return None
+
+    @property
+    def jobstatus(self) -> str | None:
+
+        """Jobstatus in plain text.
+        """
+
+        try:
+            return self._systemSet["JOBSTATUS"]
+        except KeyError:
+            return None
+
     def as_dicts(self) -> list[dict]:
-        return [self._systemResult.as_dict] + [s.as_dict for s in self._sets]
 
-    @property
-    def ecu(self) -> str:
-        return self._systemResult["VARIANTE"]
+        """List of dicts holding all fetched result data.
+        systemSet will be at index #0, jobSets will start at index #1.
 
-    @property
-    def jobname(self) -> str:
-        return self._systemResult["JOBNAME"]
+        Return values:
+        result: A list with a dict for each set (systemSet and jobSets).
+        """
 
-    @property
-    def jobstatus(self) -> str:
-        return self._systemResult["JOBSTATUS"]
-
-    @property
-    def systemResult(self) -> str:
-        return self._systemResult
+        return [self._systemSet.as_dict()] + [s.as_dict() for s in self._jobSets]
 
     def count(self, name: str) -> int:
+
+        """Number of occurrences of the given job name in all jobSets
+
+        Parameters:
+        name: Name of the result to be counted.
+
+        Return values:
+        result: Number of occurrences.
+
+        Raises:
+            TypeError
+        """
+
+        # Check correct type of name
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
+        # Search all jobSets for the name
         n = 0
-        for set in self._sets:
-            for row in set:
-                if name.upper() == row.name.upper():
+        for s in self._jobSets:
+            if name in s:
                     n += 1
         return n
 
     def index(self, name: str, start: int = 0, end: int | None = None) -> int:
+
+        """Get index of first set in jobSets containing the given name starting and ending with the indexes given.
+        If a result with the given name cannot be found, a ValueError will be raised.
+
+        Parameters:
+        name: Name of the result to be searched for.
+
+        Optional Parameters:
+        start: Index to start searching from (including the given index).
+        end: Index to stop searching at (not including the given index).
+
+        Return values:
+        result: Index of set in jobSets containing a result with the given name.
+
+        Raises:
+            TypeError
+            ValueError
+        """
+
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
-        for i, set in enumerate(self._sets[start:end if end else len(self._sets)]):
-            for row in set:
-                if name.upper() == row.name.upper():
-                    return i + start
+        for i, s in enumerate(self._jobSets[start:end if end else len(self._jobSets)]):
+            if name in s:
+                return i + start
         
         raise ValueError(f"'{name}' is not in result")
     
-    def get(self, name: str, default=None) -> int | str | bytes | float:
+    def get(self, name: str, default=None) -> int | str | bytes | float | None:
+
+        """Get the value of the first occurrence of a result with the given name 
+        starting from the first jobSet to the last.
+        Any further occurrences of the name in other jobSets will be ignored.
+        A default value other than None can be specified.
+
+        Parameters:
+        name: Name of the result to get the value from
+
+        Optional Parameters:
+        default: Value to be returned of no result with the given name has been found.
+
+        Return value:
+        result: Value of the result or default value
+
+        Raises:
+            TypeError
+        """
+
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
-        for set in self._sets:
+        for set in self._jobSets:
             try:
                 return set[name]
             except KeyError:
@@ -144,10 +330,10 @@ class Result():
         return default
     
     def __len__(self) -> int:
-        return len(self._sets)
+        return len(self._jobSets)
 
     def __bool__(self) -> bool:
-        return bool(self._sets)
+        return bool(self._jobSets)
     
     def __iter__(self) -> Result:
         self._n = 0
@@ -155,48 +341,63 @@ class Result():
     
     def __next__(self) -> Set:
         if self._n < self.__len__():
-            result = self._sets[self._n]
+            result = self._jobSets[self._n]
             self._n += 1
             return result
         else:
-            raise StopIteration
+            raise StopIteration()
     
     def __str__(self) -> str:
-        s = "-------------- EDIABAS Result --------------\n"
+        s = "\n"
+        s += "============== PyDIABAS Result ==============\n"
 
-        if self.systemResult:
-            s += "\nsystemResult:\n"
-            for key in self.systemResult:
-                s += f"    {key:30}: {self.systemResult[key]}\n"
+        if self._systemSet:
+            s += "-------------- systemSet       --------------\n"
+            s += str(self._systemSet)
 
-        for i, set in enumerate(self._sets):
-            s += f"\nSet {i}:\n"
-            for j, row in enumerate(set):
-                s += f"    {row.name:30}: {row.value}"
-                if j < len(set) - 1:
-                    s += "\n"
+        for i in range(len(self._jobSets)):
+            s += f"-------------- jobSet #{i:<3d}     --------------\n"
+            s += str(self._jobSets[i])
 
+        s += "============== END             ==============\n"
         return s
     
-    def __getitem__(self, key: str | int | slice) -> Row | int | str | bytes | float:
-        if isinstance(key, (int, slice)):
-            return self._sets[key]
+
+    def __getitem__(self, key: str | int | slice) -> list[Row] | Row | int | str | bytes | float:
+
+        """Gets items from the jobSets only.
+        """
+
+        if isinstance(key, slice):
+            sliced_result = Result(self._ediabas)
+            sliced_result._systemSet = self._systemSet
+            sliced_result._jobSets = self._jobSets[key]
+            return sliced_result
+
+        if isinstance(key, int):
+            return self._jobSets[key]
             
         elif isinstance(key, str):
-            for set in self._sets:
-                for row in set:
-                    if key.upper() == row.name.upper():
-                        return row.value
-            raise KeyError
-            
-        else:
-            raise AttributeError
+            for s in self._jobSets:
+                try:
+                    return s[key]
+                except KeyError:
+                    pass
+                    
+            raise KeyError(f"'{key}' not in result")
+        
+        raise TypeError(f"Expected str, int or slice. Got {type(key)}")
+
 
     def __contains__(self, name: str) -> bool:
+
+        """Checks jobSets only.
+        """
+
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
-        for set in self._sets:
+        for set in self._jobSets:
             for row in set:
                 if name.upper() == row.name.upper():
                     return True
@@ -206,7 +407,26 @@ class Result():
 
 
 class Set():
-    def __init__(self, rows: list[Row] = []) -> Set:
+
+    """Class to store a set of results form the EDIABAS API.
+    """
+
+    def __init__(self, rows: list[Row] | None = None) -> None:
+
+        """Initializes a new instance of Set either empty or with the rows given as parameter.
+
+        Optional Parameters:
+        rows: list of Row types to be used as initial data n the set.
+
+        Raises:
+            TypeError
+        """
+        
+        # Set rows to empty list if not passed as arguments
+        # = [] as default value as function parameter leads to unpredictable behavior.
+        if rows is None:
+            rows = []
+
         if not isinstance(rows, list):
             raise TypeError("rows need to be a list containing Row instances")
         
@@ -218,24 +438,42 @@ class Set():
 
     @property
     def all(self) -> list[Row]:
+
+        """All rows in a list.
+        """
+
         return self._rows
 
-    @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
+
+        """All rows as a dict with row.name as key and row.value as value.
+
+        Return values:
+        result: dict containing all results.
+        """
+
         return {row.name: row.value for row in self._rows}
 
-
-    def count(self, name: str) -> int:
-        if not isinstance(name, str):
-            raise TypeError("name need to be a string")
-
-        n = 0
-        for row in self._rows:
-            if name.upper() == row.name.upper():
-                n += 1
-        return n
-
     def index(self, name: str, start: int = 0, end: int | None = None) -> int:
+
+        """Get the index of a row with the given name.
+        Start and end can be given as indexes.
+        If the name cannot be found, a ValueError will be raised.
+        
+        Parameters:
+        name: Name of the result to search for.
+
+        Optional Parameters:
+        start: Index to start searching from (including the given index).
+        end: Index to stop searching at (not including the given index).
+
+        Return values:
+        result: Index of the result with the given name.
+
+        Raises:
+            ValueError
+        """
+
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
@@ -243,28 +481,56 @@ class Set():
             if row.name.upper() == name.upper():
                 return i + start
         
-        raise ValueError(f"'{name}' is not in result set")
+        raise ValueError(f"'{name}' is not in set")
     
     def keys(self) -> list:
+
+        """List of all row.names if this Set.
+        
+        Return values:
+        result: List of all names in the Set.
+        """
+
         return [row.name for row in self._rows]
 
     def values(self) -> list:
+
+        """List of all row.values if this Set.
+        
+        Return values:
+        result: List of all values in the Set.
+        """
+
         return [row.value for row in self._rows]
 
     def items(self) -> list[tuple]:
-        return [(row.name, row.value) for row in self._rows]
 
-    def has_key(self, name: str) -> bool:
-        if not isinstance(name, str):
-            raise TypeError("name need to be a string")
+        """List of all rows if this Set as tuples.
         
-        for row in self._rows:
-            if name.upper() == row.name.upper():
-                return True
+        Return values:
+        result: List of all rows in the Set as tuples.
+        """
 
-        return False
+        return [(row.name, row.value) for row in self._rows]
     
-    def get(self, name: str, default=None) -> int | str | bytes | float:
+    def get(self, name: str, default=None) -> int | str | bytes | float | None:
+        
+        """Get the value of the row with the given name.
+        A default value other than None can be specified.
+
+        Parameters:
+        name: Name of the row to get the value from.
+
+        Optional Parameters:
+        default: Value to be returned of no row with the given name has been found.
+
+        Return value:
+        result: Value of the row or default value
+
+        Raises:
+            TypeError
+        """
+
         if not isinstance(name, str):
             raise TypeError("name need to be a string")
 
@@ -289,7 +555,7 @@ class Set():
             self._n += 1
             return result
         else:
-            raise StopIteration
+            raise StopIteration()
     
     def __str__(self) -> str:
         s = ""
@@ -297,21 +563,24 @@ class Set():
             s += f"{row.name:30}: {row.value}"
             if i < len(self) - 1:
                 s += "\n"
+        s += "\n"
         return s
 
     def __getitem__(self, key: str | int | slice) -> int | str | bytes | float:
-        if isinstance(key, (int, slice)):
+        if isinstance(key, slice):
+            return Set( self._rows[key])
+
+        if isinstance(key, int):
             return self._rows[key]
             
-        elif isinstance(key, str):
+        if isinstance(key, str):
             for row in self._rows:
                 if key.upper() == row.name.upper():
                     return row.value
-            raise KeyError
-            
-
-        else:
-            raise AttributeError
+                    
+            raise KeyError(f"'{key}' not in set")
+        
+        raise TypeError(f"Expected str, int or slice. Got {type(key)}")
         
     def __contains__(self, name: str) -> bool:
         if not isinstance(name, str):
@@ -323,5 +592,11 @@ class Set():
         
         return False
 
+@dataclass
+class Row:
 
-Row = namedtuple("row", ["name", "value"])
+    """Represents a row in a Set. Maps name to value.
+    """
+    
+    name: str
+    value: bytes
