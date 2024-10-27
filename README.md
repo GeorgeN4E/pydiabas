@@ -21,10 +21,11 @@ Using this module makes it possible to make advantage of the comfort features of
     - [ecu module](#ecu-module)
         - [ECU class](#ecu-class)
         - [MSD80 class](#msd80-class)
-5. [Limitations](#5-limitations)
-6. [Future Development](#6-future-development)
-7. [EDIABAS Troubleshooting](#7-ediabas-troubleshooting)
-8. [License](#8-license)
+5. [Tests](#5-tests)
+6. [Limitations](#6-limitations)
+7. [Future Development](#7-future-development)
+8. [EDIABAS Troubleshooting](#8-ediabas-troubleshooting)
+9. [License](#9-license)
 
 ## 1 General Description
 The **pydiabas** module has two sub modules:
@@ -49,7 +50,7 @@ As far as I know, **EDIABAS** is only running on Windows.
 
 ### EDIABAS
 A working **EDIABAS** (version >= 7.0.0) is required. The collection and installation of **EDIABAS** ist neither part of this module nor covered in this documentation. There are a lot of sources, instructions and tutorials out there.
-Under [7. EDIABAS Troubleshooting](#7-ediabas-troubleshooting) you can finde some help regarding common problems using **EDIABAS**, focussing on configuring **EDIABAS** correctly to establish a communication via the OBD cable.
+Under [8. EDIABAS Troubleshooting](#8-ediabas-troubleshooting) you can finde some help regarding common problems using **EDIABAS**, focussing on configuring **EDIABAS** correctly to establish a communication via the OBD cable.
 
 ### OBD Cable
 I'm using the [MaxDia Diag 2+](https://www.obdexpert.de/shopware/diagnose-artikel/fuer-bmw-fahrzeuge/33/maxdia-diag-2-diagnose-interface-fuer-bmw-fahrzeuge-bj.-2007-2016-ohne-software?c=20) cable from [obdexpert.de](https://www.obdexpert.de). This cable is usable for BMW from 2007 to 2016. If you need to connect to older BMWs, you may want to use this [Pin7 - Pin8 - Connector für MaxDia Diag2+](https://www.obdexpert.de/shopware/diagnose-artikel/fuer-bmw-fahrzeuge/28/pin7-pin8-connector-fuer-maxdia-diag2?c=20).
@@ -1109,14 +1110,35 @@ Provides helper functions for a more comfortable and clean way of interaction wi
 Is just a wrapper around the `api32.dll` library, loading this library and extracting all the functions.
 
 
-## 5 Limitations
+## 5 Tests
+There are test which can be run without being connected to an ECU and some other tests need a specific ECU to be connected.  
+A working **EDIABAS** system ist required. To solve the most common communication problems with **EDIABAS** please consult the section [EDIABAS Troubleshooting](#8-ediabas-troubleshooting). Steps 1-3 must be completed successful to run the offline test and steps 4-5 in addition to be able to run online tests.
+The test must be executed using `unittest` on a 32bit python version.
+
+### Offline Tests
+These test do not need a to have an ECU connected.
+These test cover the behavior of all the classes, methods and properties as well as the connection between **pydiabas** and **EDIABAS**.
+Use the following command to rund all offline test at once:
+```
+python -m unittest test
+```
+
+### Online Tests
+Test which require an ECU to be connected have to be run manually.  
+They can be found in the `test/test_ecu` folder.
+Use the following command to manually run the test for the MSD80:
+```
+python -m unittest test.test_ecu.test_msd80
+```
+
+## 6 Limitations
 ### 32bit python version
 As **EDIABAS** is using a 32bit architecture, a 32bit python version must be used to be able to load the `api32.dll` library.
 
 ### EDIABAS Multi Threading
 It seems that **EDIABAS** allows multithreading in some way, but I didn't figure out how to use it or why it isn't working in my computer.
 
-## 6 Future Development
+## 7 Future Development
 ### Async Job execution
 Allowing an job to be executed asynchronous to avoid blocking the calling program until the result is returned by the ECU.
 
@@ -1126,7 +1148,7 @@ To avoid hidden bugs and ease troubleshooting it might be feasible to add some m
 ### Add Specific ECU Classes
 Add further classes providing specific functionality for single ECUs.
 
-## 7 EDIABAS Troubleshooting
+## 8 EDIABAS Troubleshooting
 Here are some common reasons for problems with getting a connection to your car.
 
 ### 1. Check your Windows Environment Variables
@@ -1225,7 +1247,7 @@ Port=Com1
 
 With all this set up, you should be able to establish a connection between **pydiabas** and your car.
 
-## 8 License
+## 9 License
 Copyright (c) 2024 Aljoscha Greim aljoscha@bembelbytes.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
