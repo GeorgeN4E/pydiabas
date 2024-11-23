@@ -6,8 +6,9 @@ Using this module makes it possible to make advantage of the comfort features of
 ## Table of contents
 1. [General Description](#1-general-description)
 2. [System Requirements](#2-system-requirements)
-3. [Quick Start](#3-quick-start)
-4. [Module Documentation](#4-module-documentation)
+3. [Installation](#3-installation)
+4. [Quick Start](#4-quick-start)
+5. [Module Documentation](#5-module-documentation)
     - [pydiabas module](#pydiabas-module)
         - [PyDIABAS class](#pydiabas-class)
         - [Result class](#result-class)
@@ -21,11 +22,11 @@ Using this module makes it possible to make advantage of the comfort features of
     - [ecu module](#ecu-module)
         - [ECU class](#ecu-class)
         - [MSD80 class](#msd80-class)
-5. [Tests](#5-tests)
-6. [Limitations](#6-limitations)
-7. [Future Development](#7-future-development)
-8. [EDIABAS Troubleshooting](#8-ediabas-troubleshooting)
-9. [License](#9-license)
+6. [Tests](#6-tests)
+7 [Limitations](#7-limitations)
+8. [Future Development](#8-future-development)
+9. [EDIABAS Troubleshooting](#9-ediabas-troubleshooting)
+10. [License](#10-license)
 
 ## 1 General Description
 The **pydiabas** module has two sub modules:
@@ -63,7 +64,13 @@ This module has been developed using [python 3.12.7 32bit](https://www.python.or
 As **EDIABAS** uses 32bits memory addresses, a 32bit python version is necessary to load the **EDIABAS** dynamic library ("api32.dll").
 
 
-## 3 Quick Start
+## 3 Installation
+You can use *pip* to install pydiabas using the following command
+```
+pip install pydiabas
+```
+
+## 4 Quick Start
 
 To get your first data out of **pydiabas** you just need a few lines of code.
 It's not necessary to have your OBD cable connected to your PC as `TMODE` is a simulated ECU which can be accessed without being connected to a car.
@@ -88,7 +95,7 @@ with PyDIABAS() as pydiabas:
 > `OSError: [WinError 193] %1 is not a valid Win32 application`
 
 
-## 4 Module Documentation
+## 5 Module Documentation
 
 ### pydiabas module
 This is the main module to be used. It provides all functionality usually required to use **EDIABAS** for communication with ECUs. The **ediabas** sub-module offers more control but needs a deeper understanding about the **EDIABAS** system to work with.
@@ -1110,7 +1117,7 @@ Provides helper functions for a more comfortable and clean way of interaction wi
 Is just a wrapper around the `api32.dll` library, loading this library and extracting all the functions.
 
 
-## 5 Tests
+## 6 Tests
 There are test which can be run without being connected to an ECU and some other tests need a specific ECU to be connected.  
 A working **EDIABAS** system ist required. To solve the most common communication problems with **EDIABAS** please consult the section [EDIABAS Troubleshooting](#8-ediabas-troubleshooting). Steps 1-3 must be completed successful to run the offline test and steps 4-5 in addition to be able to run online tests.
 The test must be executed using `unittest` on a 32bit python version.
@@ -1131,14 +1138,14 @@ Use the following command to manually run the test for the MSD80:
 python -m unittest test.test_ecu.test_msd80
 ```
 
-## 6 Limitations
+## 7 Limitations
 ### 32bit python version
 As **EDIABAS** is using a 32bit architecture, a 32bit python version must be used to be able to load the `api32.dll` library.
 
 ### EDIABAS Multi Threading
 It seems that **EDIABAS** allows multithreading in some way, but I didn't figure out how to use it or why it isn't working in my computer.
 
-## 7 Future Development
+## 8 Future Development
 ### Async Job execution
 Allowing an job to be executed asynchronous to avoid blocking the calling program until the result is returned by the ECU.
 
@@ -1148,7 +1155,7 @@ To avoid hidden bugs and ease troubleshooting it might be feasible to add some m
 ### Add Specific ECU Classes
 Add further classes providing specific functionality for single ECUs.
 
-## 8 EDIABAS Troubleshooting
+## 9 EDIABAS Troubleshooting
 Here are some common reasons for problems with getting a connection to your car.
 
 ### 1. Check your Windows Environment Variables
@@ -1247,7 +1254,7 @@ Port=Com1
 
 With all this set up, you should be able to establish a connection between **pydiabas** and your car.
 
-## 9 License
+## 10 License
 Copyright (c) 2024 Aljoscha Greim aljoscha@bembelbytes.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
