@@ -91,8 +91,10 @@ with PyDIABAS() as pydiabas:
     # Access result data
     print(result["TYP"]) # prints: b'OBD'
 ```
-> __Info:__ If you get the following error you are most probably using a 64bit python version.  
+> __Info1:__ If you get the following error you are most probably using a 64bit python version.  
 > `OSError: [WinError 193] %1 is not a valid Win32 application`
+
+> __Info2:__ If you get some other errors, try to run cmd/IDE as ADMINISTRATOR.
 
 
 ## 5 Module Documentation
